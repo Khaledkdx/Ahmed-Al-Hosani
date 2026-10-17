@@ -82,7 +82,16 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f0f4f8;min-heigh
   </div>
 
   <!-- Fixed info -->
-  <div class="fixed-badge"><i class="ti ti-user-check"></i> <span>👷 <b>Eng. Nigood</b> &nbsp;|&nbsp; 📌 <b>Ahmed Al Hosani</b> &nbsp;|&nbsp; 💳 <b>Cash</b></span></div>
+  <div class="fixed-badge"><i class="ti ti-user-check"></i> <span>👷 <b>Eng. Nigood</b> &nbsp;|&nbsp; 💳 <b>Cash</b></span></div>
+
+  <!-- Project -->
+  <div class="section">
+    <div class="section-title"><i class="ti ti-building"></i> Project</div>
+    <div class="options-grid">
+      <div class="opt" data-group="project" data-val="Ahmed Al Hosani"><div class="chk"><i class="ti ti-check"></i></div>Ahmed Al Hosani</div>
+      <div class="opt" data-group="project" data-val="Abdulmajeed Al Darari"><div class="chk"><i class="ti ti-check"></i></div>Abdulmajeed Al Darari</div>
+    </div>
+  </div>
 
   <!-- Stage -->
   <div class="section">
@@ -132,7 +141,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f0f4f8;min-heigh
 <script>
 let imgFile = null;
 let imgObjectUrl = null;
-const selections = {stage:[],type:[]};
+const selections = {project:[],stage:[],type:[]};
 
 function handleFile(file){
   if(!file) return;
@@ -176,7 +185,7 @@ function buildText(){
     '👷 *Name:* Eng. Nigood\n'+
     '📅 *Date:* '+dateStr+'\n'+
     '━━━━━━━━━━━━━━━\n'+
-    '📌 *Project:* Ahmed Al Hosani\n'+
+    '📌 *Project:* '+(selections.project.length?selections.project.join(', '):'—')+'\n'+
     '🏗 *Stage:* '+(stage.length?stage.join(', '):'—')+'\n'+
     '🔖 *Type:* '+(type.length?type.join(', '):'—')+'\n'+
     '💳 *Payment:* Cash\n'+
