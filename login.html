@@ -62,7 +62,7 @@ function showChange(){
 }
 
 // Already signed in?
-fetch('/api/me', {credentials:'same-origin'}).then(r => r.ok ? r.json() : null).then(me => {
+(Session.get() ? Api.me().catch(() => null) : Promise.resolve(null)).then(me => {
   if(!me) { $('username').focus(); return; }
   if(me.user.must_change_password) showChange(); else if(!params.get('change')) home(me.user);
 }).catch(() => {});

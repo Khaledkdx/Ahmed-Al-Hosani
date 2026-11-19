@@ -2,11 +2,9 @@ name = "sabco-ops-api"
 main = "src/index.js"
 compatibility_date = "2026-11-01"
 
-# Pages (index, dashboard, admin, login) are served from ./public by the same Worker,
-# so the sign-in cookie works on one origin.
-[assets]
-directory = "./public"
-binding = "ASSETS"
+# API only. The pages are served by GitHub Pages from the repository root.
+[vars]
+ALLOWED_ORIGINS = "https://khaledkdx.github.io"
 
 [[d1_databases]]
 binding = "DB"

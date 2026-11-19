@@ -2,7 +2,6 @@ import Anthropic from '@anthropic-ai/sdk';
 import { hashPassword, verifyPassword, randomToken, sha256Hex } from './crypto.js';
 
 const SESSION_DAYS = 30;
-const COOKIE = 'sabco_session';
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MONTH_RE = /^\d{4}-\d{2}$/;
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -14,11 +13,27 @@ class HttpError extends Error {
 }
 const fail = (status, message) => { throw new HttpError(status, message); };
 
-const json = (data, status = 200, headers = {}) =>
+const json = (data, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers },
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
+
+// The pages live on GitHub Pages (another origin), so the API answers CORS for allowed origins.
+function allowedOrigin(req, env) {
+  const origin = req.headers.get('Origin');
+  if (!origin) return null;
+  const list = String(env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (list.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return origin;
+  return null;
+}
+function withCors(res, origin) {
+  if (!origin) return res;
+  const r = new Response(res.body, res);
+  r.headers.set('Access-Control-Allow-Origin', origin);
+  r.headers.set('Vary', 'Origin');
+  return r;
+}
 
 const str = (v, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const strList = v => (Array.isArray(v) ? v.map(x => str(String(x))).filter(Boolean).slice(0, 30) : []);
@@ -28,19 +43,16 @@ async function body(req) {
   try { return await req.json(); } catch { fail(400, 'Invalid request body'); }
 }
 
-function getCookie(req, name) {
-  const c = req.headers.get('Cookie') || '';
-  const m = c.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]+)'));
+// Session token travels in the Authorization header (never a cookie), so other sites cannot use it.
+function getToken(req) {
+  const m = (req.headers.get('Authorization') || '').match(/^Bearer ([0-9a-f]{64})$/);
   return m ? m[1] : null;
-}
-function sessionCookie(token, maxAge) {
-  return `${COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`;
 }
 
 // ---------- auth ----------
 
 async function currentUser(req, env) {
-  const token = getCookie(req, COOKIE);
+  const token = getToken(req);
   if (!token) return null;
   const row = await env.DB.prepare(
     `SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id
@@ -245,12 +257,6 @@ async function handleApi(req, env, url) {
   const path = url.pathname.replace(/\/+$/, '');
   const method = req.method;
 
-  // Same-origin only for state-changing requests (cookie auth)
-  if (method !== 'GET') {
-    const origin = req.headers.get('Origin');
-    if (origin && origin !== url.origin) fail(403, 'Cross-origin request blocked');
-  }
-
   if (path === '/api/login' && method === 'POST') {
     const b = await body(req);
     const user = await env.DB.prepare('SELECT * FROM users WHERE username = ?1').bind(str(b.username, 32)).first();
@@ -262,13 +268,13 @@ async function handleApi(req, env, url) {
       env.DB.prepare('DELETE FROM sessions WHERE expires_at < ?1').bind(new Date().toISOString()),
       env.DB.prepare('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?1, ?2, ?3)').bind(await sha256Hex(token), user.id, expires),
     ]);
-    return json({ user: publicUser(user) }, 200, { 'Set-Cookie': sessionCookie(token, SESSION_DAYS * 86400) });
+    return json({ user: publicUser(user), token });
   }
 
   if (path === '/api/logout' && method === 'POST') {
-    const token = getCookie(req, COOKIE);
+    const token = getToken(req);
     if (token) await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?1').bind(await sha256Hex(token)).run();
-    return json({ ok: true }, 200, { 'Set-Cookie': sessionCookie('', 0) });
+    return json({ ok: true });
   }
 
   const user = await currentUser(req, env);
@@ -280,7 +286,7 @@ async function handleApi(req, env, url) {
     checkPassword(b.password);
     if (b.password === b.current) fail(400, 'Choose a new password');
     const { hash, salt } = await hashPassword(b.password);
-    const token = getCookie(req, COOKIE);
+    const token = getToken(req);
     await env.DB.batch([
       env.DB.prepare('UPDATE users SET pass_hash = ?1, salt = ?2, must_change_password = 0 WHERE id = ?3').bind(hash, salt, user.id),
       // sign out other devices, keep this one
@@ -392,15 +398,28 @@ async function handleApi(req, env, url) {
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
-    if (url.pathname.startsWith('/api/')) {
-      try {
-        return await handleApi(req, env, url);
-      } catch (e) {
-        if (e instanceof HttpError) return json({ error: e.message }, e.status);
-        console.error(e);
-        return json({ error: 'Server error' }, 500);
-      }
+    const origin = allowedOrigin(req, env);
+    if (req.method === 'OPTIONS') {
+      if (!origin) return new Response(null, { status: 403 });
+      return new Response(null, {
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': origin,
+          'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+          'Access-Control-Max-Age': '86400',
+          'Vary': 'Origin',
+        },
+      });
     }
-    return env.ASSETS.fetch(req);
+    if (!url.pathname.startsWith('/api/')) return json({ error: 'Not found' }, 404);
+    let res;
+    try {
+      res = await handleApi(req, env, url);
+    } catch (e) {
+      if (e instanceof HttpError) res = json({ error: e.message }, e.status);
+      else { console.error(e); res = json({ error: 'Server error' }, 500); }
+    }
+    return withCors(res, origin);
   },
 };

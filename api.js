@@ -1,4 +1,8 @@
-// Shared client code for the SABCO pages (served by the same Worker as the API).
+// Shared client code for the SABCO pages (GitHub Pages) talking to the Cloudflare Worker API.
+
+// Worker URL. Local runs (localhost) talk to `wrangler dev` on the same machine.
+const WORKER_URL = 'https://REPLACE_WITH_WORKER_URL';
+const API_BASE = ['localhost', '127.0.0.1'].includes(location.hostname) ? 'http://localhost:8787' : WORKER_URL;
 
 const TYPES = [
   ['Material', 'Material'], ['Labour', 'Labour'], ['Employees', 'Employees'], ['Subcontract', 'Subcontract'],
@@ -12,14 +16,24 @@ class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
+const Session = {
+  KEY: 'sabco_token',
+  get() { try { return localStorage.getItem(this.KEY) || ''; } catch (e) { return ''; } },
+  set(t) { try { t ? localStorage.setItem(this.KEY, t) : localStorage.removeItem(this.KEY); } catch (e) {} },
+};
+
 const Api = (() => {
   async function call(path, opts = {}) {
     let res;
+    const token = Session.get();
     try {
-      res = await fetch(path, {
+      res = await fetch(API_BASE + path, {
         ...opts,
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: 'Bearer ' + token } : {}),
+          ...(opts.headers || {}),
+        },
       });
     } catch (e) {
       throw new ApiError(0, 'No internet connection');
@@ -27,6 +41,8 @@ const Api = (() => {
     let data = {};
     try { data = await res.json(); } catch (e) {}
     if (res.status === 401 && !path.startsWith('/api/login')) {
+      Session.set('');
+      if (/\/login(\.html)?$/.test(location.pathname)) throw new ApiError(401, data.error || 'Please sign in');
       location.href = 'login.html?next=' + encodeURIComponent(location.pathname + location.search);
       return new Promise(() => {}); // page is navigating away; leave callers waiting
     }
@@ -43,8 +59,12 @@ const Api = (() => {
   let mePromise = null;
   return {
     call,
-    login: (username, password) => post('/api/login', { username, password }),
-    logout: () => post('/api/logout', {}),
+    login: async (username, password) => {
+      const r = await post('/api/login', { username, password });
+      Session.set(r.token);
+      return r;
+    },
+    logout: async () => { try { await post('/api/logout', {}); } finally { Session.set(''); } },
     changePassword: (current, password) => post('/api/password', { current, password }),
     me: (fresh) => { if (fresh || !mePromise) mePromise = call('/api/me'); return mePromise; },
     extract: imageB64 => post('/api/extract', { image: imageB64 }),
