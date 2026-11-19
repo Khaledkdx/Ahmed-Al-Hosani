@@ -11,7 +11,7 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "sabco-ops"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "1534ec19-8090-4ad4-80da-a5688d268109"
 
 # Secret (set with `wrangler secret put ANTHROPIC_API_KEY` or in the Cloudflare dashboard):
 #   ANTHROPIC_API_KEY - Claude API key used to read invoice amounts.
