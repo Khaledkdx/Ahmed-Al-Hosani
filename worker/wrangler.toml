@@ -2,11 +2,17 @@ name = "sabco-ops-api"
 main = "src/index.js"
 compatibility_date = "2026-11-01"
 
+# Pages (index, dashboard, admin, login) are served from ./public by the same Worker,
+# so the sign-in cookie works on one origin.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "sabco-ops"
 database_id = "REPLACE_WITH_D1_DATABASE_ID"
 
-# Secrets (set with `wrangler secret put <NAME>`):
-#   ANTHROPIC_API_KEY  - Claude API key used to read invoice amounts
-#   ACCESS_CODE        - shared code users type once per device
+# Secret (set with `wrangler secret put ANTHROPIC_API_KEY` or in the Cloudflare dashboard):
+#   ANTHROPIC_API_KEY - Claude API key used to read invoice amounts.
+#   Without it the form asks for the amount manually.

@@ -54,21 +54,6 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f0f4f8;min-heigh
 .wa-btn:hover{background:#1aab52}
 .dl-btn{padding:13px;background:#0F6E56;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;transition:background .2s}
 .dl-btn:hover{background:#085041}
-
-.dash-link{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:12.5px;font-weight:600;color:#185FA5;background:#fff;border:1px solid #dde3ea;border-radius:20px;padding:5px 12px;text-decoration:none}
-.dash-link:hover{background:#E6F1FB}
-.amount-row{display:flex;align-items:center;gap:8px}
-.amount-row input{flex:1;min-width:0;padding:10px 12px;border:1px solid #dde3ea;border-radius:8px;font-size:17px;font-weight:600;color:#1a1a2e;background:#fafbfc}
-.amount-row input:focus{outline:none;border-color:#378ADD}
-.amount-row input.need{border-color:#D9822B;background:#FFF6EA}
-.amount-row .cur{font-size:13px;font-weight:600;color:#888}
-.amount-status{font-size:12px;margin-top:6px;color:#888;min-height:16px;display:flex;align-items:center;gap:5px}
-.amount-status.ok{color:#0F6E56}
-.amount-status.warn{color:#B4610F}
-.spin{width:12px;height:12px;border:2px solid #cfd9e3;border-top-color:#378ADD;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
-@keyframes spin{to{transform:rotate(360deg)}}
-.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#1a1a2e;color:#fff;font-size:13px;padding:9px 16px;border-radius:20px;opacity:0;pointer-events:none;transition:opacity .25s;max-width:90vw;text-align:center;z-index:10}
-.toast.show{opacity:1}
 </style>
 </head>
 <body>
@@ -77,7 +62,6 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f0f4f8;min-heigh
     <div class="logo">SABCO</div>
     <h1>Field Report — Eng. Nigood</h1>
     <p>ارفع صورة، اختر البيانات، شارك على واتساب</p>
-    <a class="dash-link" href="dashboard.html"><i class="ti ti-calendar-stats"></i> Dashboard</a>
   </div>
 
   <div class="upload-btns">
@@ -99,16 +83,6 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f0f4f8;min-heigh
 
   <!-- Fixed info -->
   <div class="fixed-badge"><i class="ti ti-user-check"></i> <span>👷 <b>Eng. Nigood</b> &nbsp;|&nbsp; 💳 <b>Cash</b></span></div>
-
-  <!-- Amount -->
-  <div class="section">
-    <div class="section-title"><i class="ti ti-cash"></i> Amount</div>
-    <div class="amount-row">
-      <input type="number" id="amount" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
-      <span class="cur">AED</span>
-    </div>
-    <div class="amount-status" id="amount-status">يُقرأ تلقائياً من صورة الفاتورة</div>
-  </div>
 
   <!-- Project -->
   <div class="section">
@@ -163,15 +137,10 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f0f4f8;min-heigh
     </a>
   </div>
 </div>
-<div class="toast" id="toast"></div>
 
-<script src="api.js"></script>
 <script>
 let imgFile = null;
 let imgObjectUrl = null;
-let opId = null;            // one saved operation per chosen image
-let amountSource = 'manual';
-let extractSeq = 0;
 const selections = {project:[],stage:[],type:[]};
 
 function handleFile(file){
@@ -186,78 +155,6 @@ function handleFile(file){
   document.getElementById('dl-link').href = imgObjectUrl;
   document.getElementById('dl-link').download = file.name || 'sabco_report.jpg';
   document.getElementById('action-row').style.display = 'grid';
-  opId = (crypto.randomUUID ? crypto.randomUUID() : Date.now()+'-'+Math.random().toString(36).slice(2));
-  readAmount(file);
-}
-
-const amountEl = document.getElementById('amount');
-function setStatus(cls, html){
-  const el = document.getElementById('amount-status');
-  el.className = 'amount-status' + (cls ? ' '+cls : '');
-  el.innerHTML = html;
-}
-function askAmount(msg){
-  amountEl.classList.add('need');
-  setStatus('warn', '<i class="ti ti-alert-triangle"></i> ' + msg);
-}
-amountEl.addEventListener('input', () => {
-  amountSource = 'manual';
-  amountEl.classList.remove('need');
-  if(amountEl.value) setStatus('', '');
-});
-
-// Ask the AI to read the total from the invoice photo; fall back to manual entry
-async function readAmount(file){
-  const seq = ++extractSeq;
-  amountEl.value = ''; amountSource = 'manual'; amountEl.classList.remove('need');
-  setStatus('', '<span class="spin"></span> جاري قراءة المبلغ من الفاتورة…');
-  let amount = null;
-  try{
-    const dataUrl = await resizeImage(file, 1568, 0.85);
-    if(dataUrl) amount = (await Api.extract(dataUrl.split(',')[1])).amount;
-  } catch(e){ console.log('extract error', e); }
-  if(seq !== extractSeq || amountEl.value) return; // newer image, or user already typed
-  if(amount != null){
-    amountEl.value = amount; amountSource = 'ai';
-    setStatus('ok', '<i class="ti ti-sparkles"></i> المبلغ اتقرأ من الفاتورة — راجعه وعدّله لو غلط');
-  } else {
-    askAmount('مقدرتش أقرأ المبلغ — اكتب المبلغ من فضلك');
-    amountEl.focus();
-  }
-}
-
-function toast(msg){
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2600);
-}
-
-// Amount and project are required before an operation can be shared/saved
-function validate(){
-  if(!(parseFloat(amountEl.value) > 0)){
-    askAmount('اكتب المبلغ أولاً'); amountEl.focus();
-    amountEl.scrollIntoView({behavior:'smooth', block:'center'});
-    return false;
-  }
-  if(!selections.project.length){ toast('اختر المشروع أولاً / Select a project'); return false; }
-  return true;
-}
-
-async function saveOp(){
-  const now = new Date();
-  try{
-    await Api.saveOp({
-      id: opId, created_at: now.toISOString(), date: localDateKey(now),
-      project: selections.project[0],
-      stage: getVals('stage','stage-other'), type: getVals('type','type-other'),
-      amount: parseFloat(amountEl.value), amount_source: amountSource,
-      thumb: await resizeImage(imgFile, 480, 0.7),
-    });
-    toast('✓ Saved to dashboard');
-  } catch(e){
-    console.log('save error', e);
-    toast('⚠ لم يتم الحفظ في الداشبورد — تحقق من الإنترنت');
-  }
 }
 
 document.getElementById('img-camera').addEventListener('change', function(){ handleFile(this.files[0]); });
@@ -266,10 +163,6 @@ document.getElementById('img-gallery').addEventListener('change', function(){ ha
 document.querySelectorAll('.opt').forEach(el=>{
   el.addEventListener('click',()=>{
     const g = el.dataset.group, v = el.dataset.val;
-    if(g === 'project' && !el.classList.contains('selected')){ // one project per operation
-      document.querySelectorAll('.opt[data-group="project"].selected').forEach(o => o.classList.remove('selected'));
-      selections.project = [];
-    }
     el.classList.toggle('selected');
     if(el.classList.contains('selected')) selections[g].push(v);
     else selections[g] = selections[g].filter(x=>x!==v);
@@ -295,16 +188,14 @@ function buildText(){
     '📌 *Project:* '+(selections.project.length?selections.project.join(', '):'—')+'\n'+
     '🏗 *Stage:* '+(stage.length?stage.join(', '):'—')+'\n'+
     '🔖 *Type:* '+(type.length?type.join(', '):'—')+'\n'+
-    '💰 *Amount:* '+fmtAmount(parseFloat(amountEl.value))+' AED\n'+
     '💳 *Payment:* Cash\n'+
     '━━━━━━━━━━━━━━━'
   );
 }
 
 document.getElementById('wa-btn').addEventListener('click', async function(){
-  if(!imgFile || !validate()) return;
+  if(!imgFile) return;
   const text = buildText();
-  saveOp();
   if(navigator.share && navigator.canShare){
     try{
       if(navigator.canShare({files:[imgFile]})){
@@ -315,11 +206,6 @@ document.getElementById('wa-btn').addEventListener('click', async function(){
   }
   const waUrl = 'https://wa.me/?text='+encodeURIComponent(text+'\n\n📎 _Please attach the image manually_');
   window.open(waUrl,'_blank');
-});
-
-document.getElementById('dl-link').addEventListener('click', function(e){
-  if(!validate()){ e.preventDefault(); return; }
-  saveOp();
 });
 </script>
 </body>
