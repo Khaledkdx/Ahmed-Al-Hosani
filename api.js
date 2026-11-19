@@ -1,7 +1,7 @@
 // Shared client for the SABCO operations API (Cloudflare Worker in /worker)
-const API_BASE = ['localhost', '127.0.0.1'].includes(location.hostname)
-  ? 'http://' + location.hostname + ':8787'
-  : 'https://REPLACE_WITH_WORKER_URL'; // set at deploy time
+// Worker URL, set at deploy time (e.g. https://sabco-ops-api.<account>.workers.dev).
+// Empty = same origin, used when the Worker serves the pages itself (local preview).
+const API_BASE = '';
 
 const PROJECTS = ['Ahmed Al Hosani', 'Al Khalidya'];
 const PROJECT_COLORS = { 'Ahmed Al Hosani': '#185FA5', 'Al Khalidya': '#D9822B' };
