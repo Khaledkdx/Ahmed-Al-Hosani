@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SABCO Sign In</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f0f4f8;min-height:100vh;padding:2.5rem 1rem;color:#1a1a2e}
+.wrap{max-width:380px;margin:0 auto}
+.header{text-align:center;margin-bottom:1.3rem}
+.logo{font-size:12px;font-weight:700;letter-spacing:.08em;color:#185FA5;background:#E6F1FB;padding:3px 12px;border-radius:20px;display:inline-block;margin-bottom:6px}
+.header h1{font-size:19px;font-weight:600}
+.header p{font-size:12.5px;color:#888;margin-top:4px}
+form{background:#fff;border:1px solid #e8edf2;border-radius:12px;padding:1.1rem;display:flex;flex-direction:column;gap:.8rem}
+label{font-size:12px;font-weight:600;color:#555;display:flex;flex-direction:column;gap:5px}
+input{padding:11px 12px;border:1px solid #dde3ea;border-radius:8px;font-size:15px;background:#fafbfc;color:#1a1a2e;font-family:inherit}
+input:focus{outline:none;border-color:#378ADD}
+button{padding:13px;background:#185FA5;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit}
+button:disabled{opacity:.6}
+.err{font-size:12.5px;color:#c0392b;min-height:16px}
+.note{font-size:12.5px;color:#0C447C;background:#E6F1FB;border-radius:8px;padding:8px 10px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="logo">SABCO</div>
+    <h1 id="title">Sign in</h1>
+    <p id="subtitle">سجّل دخولك بحسابك</p>
+  </div>
+
+  <form id="login-form" autocomplete="on">
+    <label>Username<input id="username" name="username" autocomplete="username" autocapitalize="none" required></label>
+    <label>Password<input id="password" name="password" type="password" autocomplete="current-password" required></label>
+    <div class="err" id="login-err" role="alert"></div>
+    <button type="submit" id="login-btn">Sign in</button>
+  </form>
+
+  <form id="change-form" hidden>
+    <div class="note">لازم تغيّر كلمة السر المؤقتة قبل ما تكمّل. 8 حروف على الأقل.</div>
+    <label>Current password<input id="cur-password" type="password" autocomplete="current-password" required></label>
+    <label>New password<input id="new-password" type="password" autocomplete="new-password" minlength="8" required></label>
+    <label>Repeat new password<input id="new-password2" type="password" autocomplete="new-password" minlength="8" required></label>
+    <div class="err" id="change-err" role="alert"></div>
+    <button type="submit" id="change-btn">Save password</button>
+  </form>
+</div>
+
+<script src="api.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const next = (params.get('next') || '').startsWith('/') && !params.get('next').startsWith('//') ? params.get('next') : null;
+const $ = id => document.getElementById(id);
+
+function home(user){ location.href = next || (user.role === 'admin' ? 'dashboard.html' : 'index.html'); }
+
+function showChange(){
+  $('login-form').hidden = true; $('change-form').hidden = false;
+  $('title').textContent = 'New password'; $('subtitle').textContent = 'اختار كلمة سر جديدة';
+  $('cur-password').focus();
+}
+
+// Already signed in?
+(Session.get() ? Api.me().catch(() => null) : Promise.resolve(null)).then(me => {
+  if(!me) { $('username').focus(); return; }
+  if(me.user.must_change_password) showChange(); else if(!params.get('change')) home(me.user);
+}).catch(() => {});
+
+$('login-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('login-err').textContent = ''; $('login-btn').disabled = true;
+  try{
+    const { user } = await Api.login($('username').value.trim(), $('password').value);
+    if(user.must_change_password){ $('cur-password').value = $('password').value; showChange(); $('new-password').focus(); }
+    else home(user);
+  } catch(err){
+    $('login-err').textContent = err.status === 401 ? 'اسم المستخدم أو كلمة السر غلط' : err.message;
+  } finally { $('login-btn').disabled = false; }
+});
+
+$('change-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('change-err').textContent = '';
+  if($('new-password').value !== $('new-password2').value){ $('change-err').textContent = 'كلمتين السر مش زي بعض'; return; }
+  $('change-btn').disabled = true;
+  try{
+    await Api.changePassword($('cur-password').value, $('new-password').value);
+    const me = await Api.me(true);
+    home(me.user);
+  } catch(err){ $('change-err').textContent = err.message; }
+  finally { $('change-btn').disabled = false; }
+});
+</script>
+</body>
+</html>

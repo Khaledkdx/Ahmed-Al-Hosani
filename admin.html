@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SABCO Admin</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f0f4f8;min-height:100vh;padding:1.2rem .9rem;color:#1a1a2e}
+.wrap{max-width:620px;margin:0 auto}
+.header{text-align:center;margin-bottom:1rem}
+.logo{font-size:12px;font-weight:700;letter-spacing:.08em;color:#185FA5;background:#E6F1FB;padding:3px 12px;border-radius:20px;display:inline-block;margin-bottom:6px}
+.header h1{font-size:19px;font-weight:600}
+
+.tabs{display:flex;gap:6px;margin-bottom:.9rem;flex-wrap:wrap}
+.tab{flex:1;min-width:0;padding:9px 8px;border:1px solid #dde3ea;border-radius:10px;background:#fff;font-size:13px;font-weight:600;color:#555;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:5px}
+.tab.active{background:#185FA5;border-color:#185FA5;color:#fff}
+
+.section{background:#fff;border:1px solid #e8edf2;border-radius:12px;padding:.9rem 1.1rem;margin-bottom:.9rem}
+.section-title{font-size:11px;font-weight:700;color:#185FA5;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.7rem;display:flex;align-items:center;gap:5px}
+.section-title i{font-size:14px}
+
+.item{border-top:1px solid #edf1f5;padding:10px 0;display:flex;flex-direction:column;gap:6px}
+.item:first-of-type{border-top:none;padding-top:0}
+.item-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.item-name{font-size:14px;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.muted{font-size:12px;color:#888}
+.badge{font-size:10.5px;font-weight:700;border-radius:10px;padding:2px 7px;background:#eef2f6;color:#555}
+.badge.admin{background:#E6F1FB;color:#185FA5}
+.badge.off{background:#fbeaea;color:#c0392b}
+.badge.temp{background:#FFF6EA;color:#B4610F}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;border:1px solid #dde3ea;border-radius:12px;padding:2px 8px;color:#444;background:#fafbfc}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.btn{border:1px solid #dde3ea;background:#fafbfc;color:#185FA5;border-radius:8px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px}
+.btn:hover{background:#E6F1FB}
+.btn.danger{color:#c0392b}
+.btn.primary{background:#185FA5;border-color:#185FA5;color:#fff}
+.btn:disabled{opacity:.5;cursor:default}
+
+form.panel{display:flex;flex-direction:column;gap:.7rem}
+label.f{font-size:12px;font-weight:600;color:#555;display:flex;flex-direction:column;gap:5px}
+input[type=text],input[type=password],input:not([type]){padding:10px 11px;border:1px solid #dde3ea;border-radius:8px;font-size:14px;background:#fafbfc;color:#1a1a2e;font-family:inherit;min-width:0;width:100%}
+input:focus{outline:none;border-color:#378ADD}
+input[type=color]{width:44px;height:36px;border:1px solid #dde3ea;border-radius:8px;background:#fff;padding:2px;cursor:pointer}
+.row2{display:flex;gap:8px;align-items:flex-end}
+.row2 > *{min-width:0}
+.check{display:flex;align-items:center;gap:8px;font-size:13px;color:#333;cursor:pointer}
+.check input{width:16px;height:16px}
+.pick{display:flex;flex-wrap:wrap;gap:6px}
+.pick label{display:flex;align-items:center;gap:6px;font-size:12.5px;border:1px solid #dde3ea;border-radius:8px;padding:6px 10px;background:#fafbfc;cursor:pointer}
+.pick input{width:14px;height:14px}
+.form-err{font-size:12.5px;color:#c0392b;min-height:0}
+.state{font-size:13px;color:#888;text-align:center;padding:1rem 0}
+.denied{text-align:center;color:#888;font-size:14px;padding:2rem 0}
+.stage-row{display:flex;align-items:center;gap:6px}
+.stage-row input{flex:1}
+.icon-btn{border:1px solid #dde3ea;background:#fafbfc;border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#555;font-size:16px;flex-shrink:0}
+.icon-btn:disabled{opacity:.35;cursor:default}
+.stage-row.off input{color:#aaa;text-decoration:line-through}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="logo">SABCO</div>
+    <h1>الإدارة</h1>
+    <div class="userbar" id="userbar"></div>
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+  <div id="view"></div>
+</div>
+
+<script src="api.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let me = null, users = [], allProjects = [];
+const isAdmin = () => me.user.role === 'admin';
+
+function tempPassword(){
+  const a = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const r = crypto.getRandomValues(new Uint32Array(10));
+  return [...r].map(x => a[x % a.length]).join('');
+}
+
+const TABS = [
+  { id: 'engineers', label: 'المهندسين', icon: 'ti-users', admin: true },
+  { id: 'projects', label: 'المشاريع', icon: 'ti-building', admin: true },
+  { id: 'stages', label: 'Stages', icon: 'ti-list', admin: false },
+];
+function allowedTabs(){ return TABS.filter(t => isAdmin() || (!t.admin && me.user.can_edit_stages)); }
+function currentTab(){
+  const tabs = allowedTabs(), h = location.hash.slice(1);
+  return (tabs.find(t => t.id === h) || tabs[0] || {}).id;
+}
+function renderTabs(){
+  const cur = currentTab();
+  $('tabs').innerHTML = allowedTabs().map(t => `<button type="button" class="tab${t.id === cur ? ' active' : ''}" data-t="${t.id}"><i class="ti ${t.icon}"></i> ${esc(t.label)}</button>`).join('');
+}
+$('tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if(b) location.hash = b.dataset.t; });
+window.addEventListener('hashchange', show);
+
+async function show(){
+  renderTabs();
+  const t = currentTab();
+  if(!t){ $('view').innerHTML = '<div class="denied">مفيش صلاحية للصفحة دي.</div>'; return; }
+  $('view').innerHTML = '<div class="state">Loading…</div>';
+  try{
+    if(t === 'engineers') await showEngineers();
+    else if(t === 'projects') await showProjects();
+    else await showStages();
+  } catch(e){ $('view').innerHTML = `<div class="state" style="color:#c0392b">${esc(e.message)}</div>`; }
+}
+
+async function refreshMe(){ me = await Api.me(true); allProjects = me.projects; }
+
+// ---------- engineers ----------
+function projectPicker(name, selected){
+  if(!allProjects.length) return '<div class="muted">مفيش مشاريع. أضف مشروع الأول من تبويب المشاريع.</div>';
+  return `<div class="pick">${allProjects.map(p => `<label><input type="checkbox" name="${name}" value="${p.id}"${selected.includes(p.id) ? ' checked' : ''}>
+    <span class="dot" style="background:${esc(p.color)}"></span>${esc(p.name)}${p.active ? '' : ' (off)'}</label>`).join('')}</div>`;
+}
+const picked = (form, name) => [...form.querySelectorAll(`input[name="${name}"]:checked`)].map(i => Number(i.value));
+
+async function showEngineers(){
+  [users] = await Promise.all([Api.users(), refreshMe()]);
+  const pname = id => allProjects.find(p => p.id === id);
+  $('view').innerHTML = `
+  <div class="section">
+    <div class="section-title"><i class="ti ti-user-plus"></i> إضافة مهندس</div>
+    <form class="panel" id="add-user" autocomplete="off">
+      <label class="f">الاسم (بيظهر في رسالة واتساب)<input id="nu-name" placeholder="Eng. ..." required></label>
+      <label class="f">Username (للدخول)<input id="nu-username" autocapitalize="none" pattern="[a-zA-Z0-9._\\-]{3,32}" required></label>
+      <div class="row2"><label class="f" style="flex:1">كلمة سر مؤقتة<input id="nu-pass" type="text" minlength="8" required></label>
+        <button type="button" class="btn" id="nu-gen" style="height:40px"><i class="ti ti-refresh"></i> توليد</button></div>
+      <div><div class="muted" style="margin-bottom:5px">المشاريع المسندة</div>${projectPicker('nu-proj', [])}</div>
+      <label class="check"><input type="checkbox" id="nu-stages"> يقدر يعدّل قائمة الـ Stages</label>
+      <div class="form-err" id="nu-err"></div>
+      <button class="btn primary" type="submit" style="justify-content:center;padding:11px"><i class="ti ti-check"></i> إضافة</button>
+    </form>
+  </div>
+  <div class="section">
+    <div class="section-title"><i class="ti ti-users"></i> الحسابات</div>
+    ${users.map(u => `<div class="item" data-id="${u.id}">
+      <div class="item-top"><span class="item-name">${esc(u.name)}</span><span class="muted">@${esc(u.username)}</span>
+        ${u.role === 'admin' ? '<span class="badge admin">Admin</span>' : ''}
+        ${u.active ? '' : '<span class="badge off">موقوف</span>'}
+        ${u.must_change_password && u.active ? '<span class="badge temp">كلمة سر مؤقتة</span>' : ''}
+        ${u.can_edit_stages && u.role !== 'admin' ? '<span class="badge">Stages</span>' : ''}</div>
+      ${u.role === 'admin' ? '<div class="muted">كل المشاريع</div>' :
+        `<div class="chips">${u.project_ids.length ? u.project_ids.map(id => { const p = pname(id); return p ? `<span class="chip"><span class="dot" style="background:${esc(p.color)}"></span>${esc(p.name)}</span>` : ''; }).join('') : '<span class="muted">مفيش مشاريع مسندة</span>'}</div>`}
+      <div class="actions">
+        <button class="btn" data-act="edit"><i class="ti ti-edit"></i> تعديل</button>
+        <button class="btn" data-act="reset"><i class="ti ti-key"></i> كلمة سر جديدة</button>
+        ${u.id === me.user.id ? '' : `<button class="btn ${u.active ? 'danger' : ''}" data-act="toggle"><i class="ti ${u.active ? 'ti-user-off' : 'ti-user-check'}"></i> ${u.active ? 'إيقاف' : 'تفعيل'}</button>`}
+      </div>
+    </div>`).join('')}
+  </div>`;
+
+  $('nu-gen').onclick = () => { $('nu-pass').value = tempPassword(); };
+  $('nu-pass').value = tempPassword();
+  $('add-user').onsubmit = async e => {
+    e.preventDefault();
+    const f = e.target, data = {
+      name: $('nu-name').value.trim(), username: $('nu-username').value.trim(), password: $('nu-pass').value,
+      project_ids: picked(f, 'nu-proj'), can_edit_stages: $('nu-stages').checked,
+    };
+    const ok = await confirmDialog({
+      title: 'إضافة الحساب؟',
+      html: `<b>${esc(data.name)}</b> (@${esc(data.username)})<br>كلمة السر المؤقتة: <code style="user-select:all">${esc(data.password)}</code><br><span class="muted">ابعتها للمهندس. هيغيّرها أول ما يدخل.</span>`,
+      ok: 'إضافة',
+    });
+    if(!ok) return;
+    try{ await Api.createUser(data); toast('✓ اتضاف الحساب'); showEngineers(); }
+    catch(err){ $('nu-err').textContent = err.message; }
+  };
+
+  $('view').querySelectorAll('.item[data-id]').forEach(el => {
+    const u = users.find(x => x.id === Number(el.dataset.id));
+    el.querySelector('[data-act="edit"]').onclick = () => editUser(el, u);
+    el.querySelector('[data-act="reset"]').onclick = async () => {
+      const pass = tempPassword();
+      const ok = await confirmDialog({
+        title: 'كلمة سر جديدة لـ ' + u.name + '؟',
+        html: `كلمة السر المؤقتة الجديدة: <code style="user-select:all">${esc(pass)}</code><br><span class="muted">هيتعمل له خروج من كل الأجهزة، ولازم يغيّرها أول ما يدخل.</span>`,
+        ok: 'تأكيد',
+      });
+      if(!ok) return;
+      try{ await Api.updateUser(u.id, { password: pass }); toast('✓ اتغيرت. ابعتها للمهندس'); showEngineers(); }
+      catch(err){ toast(err.message); }
+    };
+    const tg = el.querySelector('[data-act="toggle"]');
+    if(tg) tg.onclick = async () => {
+      const ok = await confirmDialog({
+        title: (u.active ? 'إيقاف ' : 'تفعيل ') + u.name + '؟',
+        html: u.active ? 'مش هيقدر يدخل أو يسجّل عمليات، وهيتعمل له خروج من كل الأجهزة. عملياته القديمة هتفضل في الداشبورد.' : 'هيقدر يدخل تاني بكلمة السر بتاعته.',
+        ok: u.active ? 'إيقاف' : 'تفعيل', tone: u.active ? 'danger' : '',
+      });
+      if(!ok) return;
+      try{ await Api.updateUser(u.id, { active: !u.active }); toast('✓ اتحفظ'); showEngineers(); }
+      catch(err){ toast(err.message); }
+    };
+  });
+}
+
+function editUser(el, u){
+  el.innerHTML = `<form class="panel">
+    <label class="f">الاسم<input name="name" value="${esc(u.name)}" required></label>
+    ${u.role === 'admin' ? '' : `<div><div class="muted" style="margin-bottom:5px">المشاريع المسندة</div>${projectPicker('ep', u.project_ids)}</div>
+    <label class="check"><input type="checkbox" name="stages"${u.can_edit_stages ? ' checked' : ''}> يقدر يعدّل قائمة الـ Stages</label>`}
+    <div class="form-err"></div>
+    <div class="actions"><button class="btn primary" type="submit"><i class="ti ti-check"></i> حفظ</button>
+      <button class="btn" type="button" data-cancel>إلغاء</button></div></form>`;
+  const f = el.querySelector('form');
+  f.querySelector('[data-cancel]').onclick = showEngineers;
+  f.onsubmit = async e => {
+    e.preventDefault();
+    const data = { name: f.name.value.trim() };
+    if(u.role !== 'admin'){ data.project_ids = picked(f, 'ep'); data.can_edit_stages = f.stages.checked; }
+    const ok = await confirmDialog({ title: 'حفظ التعديلات؟', html: `حساب <b>${esc(u.name)}</b>`, ok: 'حفظ' });
+    if(!ok) return;
+    try{ await Api.updateUser(u.id, data); toast('✓ اتحفظ'); showEngineers(); }
+    catch(err){ f.querySelector('.form-err').textContent = err.message; }
+  };
+}
+
+// ---------- projects ----------
+async function showProjects(){
+  await refreshMe();
+  $('view').innerHTML = `
+  <div class="section">
+    <div class="section-title"><i class="ti ti-plus"></i> مشروع جديد</div>
+    <form class="panel" id="add-proj">
+      <div class="row2"><label class="f" style="flex:1">اسم المشروع<input id="np-name" required></label>
+        <label class="f">اللون<input id="np-color" type="color" value="#2E8B57"></label></div>
+      <div class="form-err" id="np-err"></div>
+      <button class="btn primary" type="submit" style="justify-content:center;padding:11px"><i class="ti ti-check"></i> إضافة</button>
+    </form>
+  </div>
+  <div class="section">
+    <div class="section-title"><i class="ti ti-building"></i> المشاريع</div>
+    ${allProjects.map(p => `<div class="item" data-id="${p.id}"><form class="panel">
+      <div class="row2"><input name="name" value="${esc(p.name)}" aria-label="Project name" required>
+        <input name="color" type="color" value="${esc(p.color)}" aria-label="Project color"></div>
+      <div class="actions"><button class="btn" type="submit"><i class="ti ti-check"></i> حفظ</button>
+        <button class="btn ${p.active ? 'danger' : ''}" type="button" data-toggle>${p.active ? 'إيقاف' : 'تفعيل'}</button>
+        ${p.active ? '' : '<span class="badge off">موقوف</span>'}</div>
+      <div class="form-err"></div></form></div>`).join('') || '<div class="state">مفيش مشاريع</div>'}
+  </div>`;
+
+  $('add-proj').onsubmit = async e => {
+    e.preventDefault();
+    const name = $('np-name').value.trim();
+    const ok = await confirmDialog({ title: 'إضافة مشروع؟', html: `<b>${esc(name)}</b><br><span class="muted">بعدها اسنده للمهندسين من تبويب المهندسين.</span>`, ok: 'إضافة' });
+    if(!ok) return;
+    try{ await Api.createProject({ name, color: $('np-color').value }); toast('✓ اتضاف المشروع'); showProjects(); }
+    catch(err){ $('np-err').textContent = err.message; }
+  };
+  $('view').querySelectorAll('.item[data-id]').forEach(el => {
+    const p = allProjects.find(x => x.id === Number(el.dataset.id));
+    const f = el.querySelector('form');
+    f.onsubmit = async e => {
+      e.preventDefault();
+      const ok = await confirmDialog({ title: 'حفظ المشروع؟', html: `<b>${esc(f.name.value.trim())}</b>`, ok: 'حفظ' });
+      if(!ok) return;
+      try{ await Api.updateProject(p.id, { name: f.name.value.trim(), color: f.color.value }); toast('✓ اتحفظ'); showProjects(); }
+      catch(err){ f.querySelector('.form-err').textContent = err.message; }
+    };
+    f.querySelector('[data-toggle]').onclick = async () => {
+      const ok = await confirmDialog({
+        title: (p.active ? 'إيقاف ' : 'تفعيل ') + p.name + '؟',
+        html: p.active ? 'المشروع مش هيظهر في النموذج للمهندسين. العمليات القديمة هتفضل في الداشبورد.' : 'المشروع هيرجع يظهر في النموذج.',
+        ok: p.active ? 'إيقاف' : 'تفعيل', tone: p.active ? 'danger' : '',
+      });
+      if(!ok) return;
+      try{ await Api.updateProject(p.id, { active: !p.active }); toast('✓ اتحفظ'); showProjects(); }
+      catch(err){ toast(err.message); }
+    };
+  });
+}
+
+// ---------- stages ----------
+async function showStages(){
+  await refreshMe();
+  const stages = me.stages;
+  $('view').innerHTML = `
+  <div class="section">
+    <div class="section-title"><i class="ti ti-plus"></i> Stage جديدة</div>
+    <form class="panel" id="add-stage">
+      <input id="ns-name" placeholder="مثلاً: Waterproofing" aria-label="New stage name" required>
+      <div class="form-err" id="ns-err"></div>
+      <button class="btn primary" type="submit" style="justify-content:center;padding:11px"><i class="ti ti-check"></i> إضافة</button>
+    </form>
+  </div>
+  <div class="section">
+    <div class="section-title"><i class="ti ti-list"></i> قائمة الـ Stages في النموذج</div>
+    ${stages.map((s, i) => `<div class="item" data-id="${s.id}"><form class="stage-row${s.active ? '' : ' off'}">
+      <button type="button" class="icon-btn" data-move="-1" aria-label="Move up"${i === 0 ? ' disabled' : ''}><i class="ti ti-chevron-up"></i></button>
+      <button type="button" class="icon-btn" data-move="1" aria-label="Move down"${i === stages.length - 1 ? ' disabled' : ''}><i class="ti ti-chevron-down"></i></button>
+      <input name="name" value="${esc(s.name)}" aria-label="Stage name" required>
+      <button type="submit" class="icon-btn" aria-label="Save name"><i class="ti ti-check"></i></button>
+      <button type="button" class="icon-btn" data-toggle aria-label="${s.active ? 'Hide' : 'Show'}"><i class="ti ${s.active ? 'ti-eye-off' : 'ti-eye'}"></i></button>
+    </form><div class="form-err"></div></div>`).join('')}
+  </div>`;
+
+  $('add-stage').onsubmit = async e => {
+    e.preventDefault();
+    const name = $('ns-name').value.trim();
+    const ok = await confirmDialog({ title: 'إضافة Stage؟', html: `<b>${esc(name)}</b>`, ok: 'إضافة' });
+    if(!ok) return;
+    try{ await Api.createStage(name); toast('✓ اتضافت'); showStages(); }
+    catch(err){ $('ns-err').textContent = err.message; }
+  };
+  $('view').querySelectorAll('.item[data-id]').forEach((el, i) => {
+    const s = stages[i], f = el.querySelector('form');
+    f.onsubmit = async e => {
+      e.preventDefault();
+      const name = f.name.value.trim();
+      if(name === s.name) return;
+      const ok = await confirmDialog({ title: 'تغيير الاسم؟', html: `${esc(s.name)} ← <b>${esc(name)}</b><br><span class="muted">العمليات القديمة هتفضل بالاسم القديم.</span>`, ok: 'حفظ' });
+      if(!ok) return;
+      try{ await Api.updateStage(s.id, { name }); toast('✓ اتحفظ'); showStages(); }
+      catch(err){ el.querySelector('.form-err').textContent = err.message; }
+    };
+    f.querySelector('[data-toggle]').onclick = async () => {
+      const ok = await confirmDialog({
+        title: (s.active ? 'إخفاء ' : 'إظهار ') + s.name + '؟',
+        html: s.active ? 'مش هتظهر في النموذج. العمليات القديمة مش هتتأثر.' : 'هترجع تظهر في النموذج.',
+        ok: s.active ? 'إخفاء' : 'إظهار',
+      });
+      if(!ok) return;
+      try{ await Api.updateStage(s.id, { active: !s.active }); showStages(); }
+      catch(err){ toast(err.message); }
+    };
+    f.querySelectorAll('[data-move]').forEach(b => b.onclick = async () => {
+      const j = i + Number(b.dataset.move), other = stages[j];
+      if(!other) return;
+      try{
+        // write a clean sequence so swapping works even when sort values repeat
+        const order = stages.map(x => x.id);
+        [order[i], order[j]] = [order[j], order[i]];
+        await Promise.all(order.map((id, k) => Api.updateStage(id, { sort: k + 1 })));
+        showStages();
+      } catch(err){ toast(err.message); }
+    });
+  });
+}
+
+(async () => {
+  me = await requireLogin();
+  allProjects = me.projects;
+  renderUserBar($('userbar'), me, [
+    { href: 'index.html', icon: 'ti-plus', label: 'New Report' },
+    { href: 'dashboard.html', icon: 'ti-calendar-stats', label: 'Dashboard' },
+  ]);
+  if(!isAdmin()) document.querySelector('.header h1').textContent = 'Stages';
+  show();
+})();
+</script>
+</body>
+</html>

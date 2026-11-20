@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SABCO Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f0f4f8;min-height:100vh;padding:1.2rem .9rem;color:#1a1a2e}
+.wrap{max-width:620px;margin:0 auto}
+.header{text-align:center;margin-bottom:1.1rem}
+.logo{font-size:12px;font-weight:700;letter-spacing:.08em;color:#185FA5;background:#E6F1FB;padding:3px 12px;border-radius:20px;display:inline-block;margin-bottom:6px}
+.header h1{font-size:19px;font-weight:600}
+
+.filter-label{font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.06em;margin:0 0 5px 2px}
+.op .eng{font-size:12px;color:#555;margin-top:2px}
+
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:.9rem}
+.filters:empty{display:none}
+.chip{display:flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid #dde3ea;border-radius:20px;cursor:pointer;font-size:12.5px;color:#333;background:#fff;font-family:inherit;transition:all .15s}
+.chip:hover{border-color:#378ADD}
+.chip.active{background:#E6F1FB;border-color:#378ADD;color:#0C447C;font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
+
+.section{background:#fff;border:1px solid #e8edf2;border-radius:12px;padding:.9rem 1.1rem;margin-bottom:.9rem}
+.section-title{font-size:11px;font-weight:700;color:#185FA5;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.65rem;display:flex;align-items:center;gap:5px}
+.section-title i{font-size:14px}
+
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem}
+.cal-head h2{font-size:16px;font-weight:600}
+.nav-btn{width:34px;height:34px;border:1px solid #dde3ea;border-radius:8px;background:#fafbfc;color:#185FA5;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.nav-btn:hover{background:#E6F1FB}
+.today-btn{font-size:12px;font-weight:600;color:#185FA5;background:none;border:none;cursor:pointer;padding:4px 8px;font-family:inherit}
+.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.dow{font-size:10.5px;font-weight:600;color:#999;text-align:center;padding-bottom:3px}
+.day{min-height:66px;border:1px solid #edf1f5;border-radius:8px;background:#fafbfc;padding:4px 2px 3px;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit;color:inherit;min-width:0;overflow:hidden}
+.day.blank{border:none;background:none}
+.day .n{font-size:12.5px;color:#666;line-height:1.2}
+.day.has{background:#fff;border-color:#cfdbe8;cursor:pointer}
+.day.has .n{color:#1a1a2e;font-weight:700}
+.day.has:hover{border-color:#378ADD}
+.day.today .n{background:#185FA5;color:#fff;border-radius:10px;padding:0 6px}
+.day.sel{border-color:#185FA5;box-shadow:0 0 0 1.5px #185FA5 inset}
+.day .dots{display:flex;gap:2px;flex-wrap:wrap;justify-content:center;min-height:6px}
+.day .dots .dot{width:6px;height:6px}
+.day .cnt{font-size:10px;color:#667;line-height:1.1}
+.day .amt{font-size:10px;font-weight:600;color:#0F6E56;line-height:1.1;white-space:nowrap}
+.state{font-size:13px;color:#888;text-align:center;padding:1.2rem 0}
+.state.err{color:#B4610F}
+
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:.8rem}
+.stat{background:#f6f9fc;border-radius:10px;padding:10px 12px}
+.stat .lbl{font-size:11px;color:#888}
+.stat .val{font-size:19px;font-weight:700;margin-top:2px}
+.stat .val small{font-size:11px;font-weight:600;color:#888}
+.row{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:5px 0}
+.row .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .num{font-weight:600;white-space:nowrap}
+.row .sub{color:#999;font-size:11.5px;white-space:nowrap}
+.sub-title{font-size:11px;font-weight:600;color:#999;margin:.6rem 0 .1rem}
+
+.op{display:flex;gap:10px;padding:10px 0;border-top:1px solid #edf1f5}
+.op:first-of-type{border-top:none}
+.op img,.op .noimg{width:64px;height:64px;border-radius:8px;object-fit:cover;background:#eef2f6;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#b0bec8;font-size:22px}
+.op .body{flex:1;min-width:0}
+.op .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.op .proj{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;min-width:0}
+.op .amount{font-size:14px;font-weight:700;color:#0F6E56;white-space:nowrap}
+.op .meta{font-size:12px;color:#555;margin-top:3px;line-height:1.45;overflow-wrap:anywhere}
+.op .meta b{color:#999;font-weight:600}
+.op .foot{display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:11.5px;color:#999}
+.del{border:none;background:none;color:#c0392b;font-size:12px;cursor:pointer;padding:2px 4px;font-family:inherit;display:flex;align-items:center;gap:3px}
+.ai-tag{font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;font-weight:600}
+
+.lightbox{position:fixed;inset:0;background:rgba(10,20,35,.88);display:none;align-items:center;justify-content:center;padding:16px;z-index:20}
+.lightbox.show{display:flex}
+.lightbox img{max-width:100%;max-height:100%;border-radius:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="logo">SABCO</div>
+    <h1>Operations Dashboard</h1>
+    <div class="userbar" id="userbar"></div>
+  </div>
+
+  <div class="filter-label" id="proj-label">Projects</div>
+  <div class="filters" id="filters"></div>
+  <div class="filter-label" id="eng-label" hidden>Engineers</div>
+  <div class="filters" id="eng-filters" hidden></div>
+
+  <div class="section">
+    <div class="cal-head">
+      <button class="nav-btn" id="prev" aria-label="Previous month"><i class="ti ti-chevron-left"></i></button>
+      <div style="text-align:center">
+        <h2 id="month-title"></h2>
+        <button class="today-btn" id="today-btn">Today</button>
+      </div>
+      <button class="nav-btn" id="next" aria-label="Next month"><i class="ti ti-chevron-right"></i></button>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="state" id="cal-state" style="display:none"></div>
+  </div>
+
+  <div class="section" id="day-section" style="display:none">
+    <div class="section-title"><i class="ti ti-calendar-event"></i> <span id="day-title"></span></div>
+    <div id="day-list"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><i class="ti ti-chart-bar"></i> Month Summary</div>
+    <div id="summary"></div>
+  </div>
+</div>
+<div class="lightbox" id="lightbox"><img alt=""></div>
+
+<script src="api.js"></script>
+<script>
+const now = new Date();
+let me = null;
+let view = { y: now.getFullYear(), m: now.getMonth() };
+let filter = 'All';          // project id or 'All'
+let engFilter = 'All';       // user id or 'All' (admins)
+let monthOps = [];
+let selDay = null;
+let loadSeq = 0;
+
+const $ = id => document.getElementById(id);
+const isAdmin = () => me.user.role === 'admin';
+const projColor = id => (me.projects.find(p => p.id === id) || {}).color || '#7A869A';
+const ymKey = () => view.y + '-' + String(view.m + 1).padStart(2, '0');
+const visible = () => monthOps.filter(o =>
+  (filter === 'All' || o.project_id === filter) && (engFilter === 'All' || o.user_id === engFilter));
+const sum = ops => ops.reduce((t, o) => t + (o.amount || 0), 0);
+const compact = n => n >= 1e6 ? (n/1e6).toFixed(1).replace(/\.0$/,'')+'M' : n >= 10000 ? Math.round(n/1000)+'k' : n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/,'')+'k' : String(Math.round(n));
+
+function chip(val, label, active, color){
+  return `<button class="chip${active ? ' active' : ''}" data-v="${esc(val)}">` +
+    (color ? `<span class="dot" style="background:${esc(color)}"></span>` : '') + esc(label) + '</button>';
+}
+
+function renderFilters(){
+  const projects = me.projects;
+  $('filters').innerHTML = projects.length > 1 || isAdmin()
+    ? chip('All', 'All', filter === 'All') + projects.map(p => chip(p.id, p.name + (p.active ? '' : ' (off)'), filter === p.id, p.color)).join('')
+    : '';
+  $('proj-label').hidden = !$('filters').innerHTML;
+  if(isAdmin()){
+    const engs = me.engineers || [];
+    $('eng-filters').innerHTML = chip('All', 'All', engFilter === 'All') + engs.map(u => chip(u.id, u.name, engFilter === u.id)).join('');
+    $('eng-filters').hidden = $('eng-label').hidden = false;
+  }
+}
+$('filters').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if(!b) return;
+  filter = b.dataset.v === 'All' ? 'All' : Number(b.dataset.v);
+  renderAll();
+});
+$('eng-filters').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if(!b) return;
+  engFilter = b.dataset.v === 'All' ? 'All' : Number(b.dataset.v);
+  renderAll();
+});
+
+function renderCalendar(){
+  $('month-title').textContent = new Date(view.y, view.m, 1).toLocaleDateString('en-GB', {month:'long', year:'numeric'});
+  const byDay = {};
+  visible().forEach(o => (byDay[o.date] = byDay[o.date] || []).push(o));
+  const first = new Date(view.y, view.m, 1).getDay(); // week starts Sunday
+  const days = new Date(view.y, view.m + 1, 0).getDate();
+  const todayKey = localDateKey(new Date());
+  let h = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div class="dow">${d}</div>`).join('');
+  for(let i = 0; i < first; i++) h += '<div class="day blank"></div>';
+  for(let d = 1; d <= days; d++){
+    const key = ymKey() + '-' + String(d).padStart(2, '0');
+    const ops = byDay[key] || [];
+    const cls = ['day', ops.length ? 'has' : '', key === todayKey ? 'today' : '', key === selDay ? 'sel' : ''].filter(Boolean).join(' ');
+    const projs = [...new Set(ops.map(o => o.project_id))];
+    const tag = ops.length ? 'button' : 'div';
+    h += `<${tag} class="${cls}" data-date="${key}">` +
+      `<span class="n">${d}</span>` +
+      (ops.length ? `<span class="dots">${projs.map(p => `<span class="dot" style="background:${esc(projColor(p))}"></span>`).join('')}</span>` +
+        `<span class="cnt">${ops.length} op${ops.length > 1 ? 's' : ''}</span>` +
+        `<span class="amt">${compact(sum(ops))}</span>` : '') +
+      `</${tag}>`;
+  }
+  $('grid').innerHTML = h;
+}
+$('grid').addEventListener('click', e => {
+  const b = e.target.closest('.day.has'); if(!b) return;
+  selDay = b.dataset.date;
+  renderCalendar();
+  loadDay();
+});
+
+function renderSummary(){
+  const ops = visible();
+  if(!ops.length){ $('summary').innerHTML = '<div class="state">No operations this month / لا توجد عمليات</div>'; return; }
+  const group = (keyFn) => {
+    const g = new Map();
+    ops.forEach(o => keyFn(o).forEach(([k, label, color]) => {
+      const v = g.get(k) || {label, color, n:0, t:0}; v.n++; v.t += o.amount || 0; g.set(k, v);
+    }));
+    return [...g.values()].sort((a, b) => b.t - a.t);
+  };
+  const rows = list => list.map(v =>
+    `<div class="row">${v.color ? `<span class="dot" style="background:${esc(v.color)}"></span>` : ''}` +
+    `<span class="name">${esc(v.label)}</span><span class="sub">${v.n} op${v.n > 1 ? 's' : ''}</span>` +
+    `<span class="num">${fmtAmount(v.t)}</span></div>`).join('');
+  $('summary').innerHTML =
+    `<div class="stats"><div class="stat"><div class="lbl">Total spent</div><div class="val">${fmtAmount(sum(ops))} <small>AED</small></div></div>` +
+    `<div class="stat"><div class="lbl">Operations</div><div class="val">${ops.length}</div></div></div>` +
+    '<div class="sub-title">By project</div>' + rows(group(o => [[o.project_id, o.project, o.project_color]])) +
+    (isAdmin() ? '<div class="sub-title">By engineer</div>' + rows(group(o => [[o.user_id, o.engineer]])) : '') +
+    '<div class="sub-title">By type</div>' + rows(group(o => (o.type.length ? o.type : ['—']).map(t => [t, t])));
+}
+
+async function loadDay(){
+  const sec = $('day-section');
+  if(!selDay){ sec.style.display = 'none'; return; }
+  const day = selDay;
+  sec.style.display = 'block';
+  const [y, m, d] = day.split('-').map(Number);
+  $('day-title').textContent = new Date(y, m - 1, d).toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long'});
+  $('day-list').innerHTML = '<div class="state">Loading…</div>';
+  let ops;
+  try { ops = await Api.ops({ date: day }); }
+  catch(e){ if(day === selDay) $('day-list').innerHTML = '<div class="state err">Could not load / تعذر التحميل</div>'; return; }
+  if(day !== selDay) return;
+  ops = ops.filter(o => (filter === 'All' || o.project_id === filter) && (engFilter === 'All' || o.user_id === engFilter));
+  if(!ops.length){ $('day-list').innerHTML = '<div class="state">No operations</div>'; return; }
+  $('day-list').innerHTML = ops.map(o =>
+    `<div class="op">` +
+    (o.thumb && o.thumb.startsWith('data:image/') ? `<img src="${esc(o.thumb)}" alt="Invoice photo">` : '<div class="noimg"><i class="ti ti-photo-off"></i></div>') +
+    `<div class="body"><div class="top"><span class="proj"><span class="dot" style="background:${esc(o.project_color)}"></span>${esc(o.project)}</span>` +
+    `<span class="amount">${fmtAmount(o.amount)} AED</span></div>` +
+    `<div class="eng">👷 ${esc(o.engineer)}</div>` +
+    `<div class="meta"><b>Stage:</b> ${esc(o.stage.join(', ') || '—')}<br><b>Type:</b> ${esc(o.type.join(', ') || '—')}</div>` +
+    `<div class="foot"><span>${new Date(o.created_at).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})}` +
+    (o.amount_source === 'ai' ? ' <span class="ai-tag">AI</span>' : '') + `</span>` +
+    (isAdmin() ? `<button class="del" data-id="${esc(o.id)}"><i class="ti ti-trash"></i> Delete</button>` : '') +
+    `</div></div></div>`).join('');
+}
+$('day-list').addEventListener('click', async e => {
+  const img = e.target.closest('.op img');
+  if(img){ $('lightbox').querySelector('img').src = img.src; $('lightbox').classList.add('show'); return; }
+  const del = e.target.closest('.del'); if(!del) return;
+  const op = monthOps.find(o => o.id === del.dataset.id);
+  const ok = await confirmDialog({
+    title: 'حذف العملية؟',
+    html: op ? `${esc(op.project)} · ${esc(op.engineer)}<br><b>${fmtAmount(op.amount)} AED</b> · ${esc(op.date)}<br><span style="color:#c0392b">الحذف نهائي ومش هيترجع.</span>` : '',
+    ok: 'حذف', tone: 'danger',
+  });
+  if(!ok) return;
+  try { await Api.removeOp(del.dataset.id); } catch(err){ toast('فشل الحذف: ' + err.message); return; }
+  toast('اتحذفت');
+  monthOps = monthOps.filter(o => o.id !== del.dataset.id);
+  renderAll();
+});
+$('lightbox').addEventListener('click', () => $('lightbox').classList.remove('show'));
+
+function renderAll(){
+  if(selDay && !visible().some(o => o.date === selDay)) selDay = null;
+  renderFilters(); renderCalendar(); renderSummary(); loadDay();
+}
+
+async function loadMonth(){
+  const seq = ++loadSeq;
+  selDay = null; monthOps = [];
+  renderAll();
+  const st = $('cal-state');
+  st.className = 'state'; st.textContent = 'Loading…'; st.style.display = 'block';
+  try {
+    const ops = await Api.ops({ month: ymKey() });
+    if(seq !== loadSeq) return;
+    monthOps = ops; st.style.display = 'none';
+  } catch(e){
+    if(seq !== loadSeq) return;
+    st.className = 'state err'; st.textContent = 'Could not load operations / تعذر تحميل العمليات';
+  }
+  renderAll();
+}
+
+function shift(n){ const d = new Date(view.y, view.m + n, 1); view = { y: d.getFullYear(), m: d.getMonth() }; loadMonth(); }
+$('prev').addEventListener('click', () => shift(-1));
+$('next').addEventListener('click', () => shift(1));
+$('today-btn').addEventListener('click', () => { const t = new Date(); view = { y: t.getFullYear(), m: t.getMonth() }; loadMonth(); });
+
+(async () => {
+  me = await requireLogin();
+  const links = [{ href: 'index.html', icon: 'ti-plus', label: 'New Report' }];
+  if(isAdmin()) links.push({ href: 'admin.html', icon: 'ti-settings', label: 'الإدارة' });
+  else if(me.user.can_edit_stages) links.push({ href: 'admin.html#stages', icon: 'ti-list', label: 'Stages' });
+  renderUserBar($('userbar'), me, links);
+  loadMonth();
+})();
+</script>
+</body>
+</html>
