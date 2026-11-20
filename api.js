@@ -1,7 +1,7 @@
 // Shared client code for the SABCO pages (GitHub Pages) talking to the Cloudflare Worker API.
 
 // Worker URL. Local runs (localhost) talk to `wrangler dev` on the same machine.
-const WORKER_URL = 'https://REPLACE_WITH_WORKER_URL';
+const WORKER_URL = 'https://ahmed-al-hosani.khalid-growth-automation.workers.dev';
 const API_BASE = ['localhost', '127.0.0.1'].includes(location.hostname) ? 'http://localhost:8787' : WORKER_URL;
 
 const TYPES = [
