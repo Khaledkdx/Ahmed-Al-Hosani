@@ -1,0 +1,16 @@
+name = "ahmed-al-hosani"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+# API only. The pages are served by GitHub Pages from the repository root.
+[vars]
+ALLOWED_ORIGINS = "https://khaledkdx.github.io"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sabco-ops"
+database_id = "1534ec19-8090-4ad4-80da-a5688d268109"
+
+# Secret (set with `wrangler secret put ANTHROPIC_API_KEY` or in the Cloudflare dashboard):
+#   ANTHROPIC_API_KEY - Claude API key used to read invoice amounts.
+#   Without it the form asks for the amount manually.
