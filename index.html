@@ -76,6 +76,11 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f0f4f8;min-heigh
 .sum dl{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;font-size:13px;min-width:0}
 .sum dt{color:#999;font-weight:600}
 .sum dd{color:#1a1a2e;overflow-wrap:anywhere}
+.fixed-badge .who-change{margin-left:auto;border:1px solid #b8d4f0;background:#fff;color:#185FA5;border-radius:8px;padding:4px 9px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.pick-list{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.pick-list button{padding:13px 14px;border:1px solid #dde3ea;border-radius:10px;background:#fafbfc;font-size:15px;font-weight:600;color:#1a1a2e;text-align:left;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:8px}
+.pick-list button:hover{background:#E6F1FB;border-color:#378ADD}
+.load-err{background:#fbeaea;border:1px solid #f0b8b8;color:#8a1f1f;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:.9rem;display:none}
 .sum .big{font-size:16px;font-weight:700;color:#0F6E56}
 </style>
 </head>
@@ -107,7 +112,9 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f0f4f8;min-heigh
     <button class="change-btn" id="change-btn" type="button" onclick="event.stopPropagation();document.getElementById('img-gallery').click()"><i class="ti ti-refresh"></i> تغيير</button>
   </div>
 
-  <div class="fixed-badge"><i class="ti ti-user-check"></i> <span>👷 <b id="eng-name">…</b> &nbsp;|&nbsp; 💳 <b>Cash</b></span></div>
+  <div class="load-err" id="load-err" role="alert"></div>
+  <div class="fixed-badge"><i class="ti ti-user-check"></i> <span>👷 <b id="eng-name">…</b> &nbsp;|&nbsp; 💳 <b>Cash</b></span>
+    <button type="button" class="who-change" id="who-change">مش أنا؟</button></div>
 
   <div class="section">
     <div class="section-title"><i class="ti ti-cash"></i> Amount</div>
@@ -221,7 +228,7 @@ async function readAmount(file){
   let amount = null;
   try{
     const dataUrl = await resizeImage(file, 1568, 0.85);
-    if(dataUrl) amount = (await Api.extract(dataUrl.split(',')[1])).amount;
+    if(dataUrl) amount = (await Api.publicExtract(me.user.id, dataUrl.split(',')[1])).amount;
   } catch(e){ console.log('extract error', e); }
   if(seq !== extractSeq || amountEl.value) return; // newer photo, or the user already typed
   if(amount != null){
@@ -279,7 +286,7 @@ function openShare(text){
 async function saveOp(op, file){
   op.thumb = await resizeImage(file, 1000, 0.7);
   try{
-    await Api.saveOp(op);
+    await Api.publicSaveOp(op);
     $('saved-note').textContent = '✓ اتحفظت في الداشبورد';
     toast('✓ Saved to dashboard');
   } catch(e){
@@ -302,7 +309,7 @@ $('wa-btn').addEventListener('click', async () => {
   const stage = getVals('stage', 'stage-other'), type = getVals('type', 'type-other');
   const amount = parseFloat(amountEl.value);
   const op = {
-    id: opId, created_at: now.toISOString(), date: localDateKey(now), project_id: p.id,
+    id: opId, engineer_id: me.user.id, created_at: now.toISOString(), date: localDateKey(now), project_id: p.id,
     stage, type, amount, amount_source: amountSource,
   };
   const text = buildText();
@@ -333,15 +340,54 @@ async function flushPending(){
 $('pending-retry').addEventListener('click', flushPending);
 window.addEventListener('online', flushPending);
 
-// ---------- start ----------
-(async () => {
-  me = await requireLogin();
-  $('eng-name').textContent = me.user.name;
-  const links = [{ href: 'dashboard.html', icon: 'ti-calendar-stats', label: 'Dashboard' }];
-  if(me.user.role === 'admin') links.push({ href: 'admin.html', icon: 'ti-settings', label: 'الإدارة' });
-  else if(me.user.can_edit_stages) links.push({ href: 'admin.html#stages', icon: 'ti-list', label: 'Stages' });
-  renderUserBar($('userbar'), me, links);
+// ---------- start: no sign-in; the engineer picks their name once ----------
+const ENG_KEY = 'sabco_engineer_id';
+let config = null;
+const savedEngineer = () => { try { return Number(localStorage.getItem(ENG_KEY)) || null; } catch(e) { return null; } };
+const saveEngineer = id => { try { localStorage.setItem(ENG_KEY, String(id)); } catch(e) {} };
+
+function applyEngineer(eng){
+  me = {
+    user: { id: eng.id, name: eng.name },
+    projects: config.projects.filter(p => eng.project_ids.includes(p.id)).map(p => ({ ...p, active: true })),
+    stages: config.stages.map((name, i) => ({ id: i, name, active: true })),
+  };
+  sel.project = null;
+  $('eng-name').textContent = eng.name;
   renderOptions();
+}
+
+function pickEngineer(){
+  return new Promise(resolve => {
+    const wrap = document.createElement('div');
+    wrap.className = 'ui-modal';
+    wrap.innerHTML = `<div class="ui-box" role="dialog" aria-modal="true" aria-labelledby="pick-title">
+      <h3 id="pick-title">اختار اسمك</h3>
+      <div class="ui-body">هتختاره مرة واحدة، والموبايل هيفتكره.</div>
+      <div class="pick-list">${config.engineers.length
+        ? config.engineers.map(e => `<button type="button" data-id="${e.id}">👷 ${esc(e.name)}</button>`).join('')
+        : '<div class="empty-note">مفيش مهندسين لسه. الأدمن يضيفهم من صفحة الإدارة.</div>'}</div></div>`;
+    document.body.appendChild(wrap);
+    wrap.addEventListener('click', e => {
+      const b = e.target.closest('button[data-id]'); if(!b) return;
+      const eng = config.engineers.find(x => x.id === Number(b.dataset.id));
+      saveEngineer(eng.id); wrap.remove(); resolve(eng);
+    });
+  });
+}
+
+$('who-change').addEventListener('click', async () => { applyEngineer(await pickEngineer()); });
+
+(async () => {
+  $('userbar').innerHTML = '<a class="pill-link" href="dashboard.html"><i class="ti ti-calendar-stats"></i> Dashboard</a>';
+  try { config = await Api.publicConfig(); }
+  catch(e){
+    $('load-err').style.display = 'block';
+    $('load-err').textContent = 'مقدرتش أحمّل البيانات: ' + e.message + '. اتأكد من النت وافتح الصفحة تاني.';
+    return;
+  }
+  const eng = config.engineers.find(x => x.id === savedEngineer()) || await pickEngineer();
+  applyEngineer(eng);
   updatePending();
   flushPending();
 })();

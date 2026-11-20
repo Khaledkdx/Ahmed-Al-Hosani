@@ -277,6 +277,36 @@ async function handleApi(req, env, url) {
     return json({ ok: true });
   }
 
+  // ----- public form (no sign-in): engineer picks their name once on the phone -----
+  if (path === '/api/public/config' && method === 'GET') {
+    const { results: projects } = await env.DB.prepare('SELECT id, name, color FROM projects WHERE active = 1 ORDER BY name').all();
+    const { results: stages } = await env.DB.prepare('SELECT name FROM stages WHERE active = 1 ORDER BY sort, id').all();
+    const { results: engs } = await env.DB.prepare("SELECT id, name FROM users WHERE active = 1 AND role = 'engineer' ORDER BY name").all();
+    const { results: links } = await env.DB.prepare('SELECT user_id, project_id FROM user_projects').all();
+    const activeIds = new Set(projects.map(p => p.id));
+    return json({
+      projects, stages: stages.map(s => s.name),
+      engineers: engs.map(e => ({ ...e, project_ids: links.filter(l => l.user_id === e.id && activeIds.has(l.project_id)).map(l => l.project_id) })),
+    });
+  }
+  if (path.startsWith('/api/public/') && method === 'POST') {
+    const b = await body(req);
+    const eng = await env.DB.prepare("SELECT * FROM users WHERE id = ?1 AND active = 1 AND role = 'engineer'").bind(Number(b.engineer_id) || 0).first();
+    if (!eng) fail(403, 'This engineer account is not active. Choose your name again.');
+    if (path === '/api/public/ops') {
+      const project = await env.DB.prepare('SELECT active FROM projects WHERE id = ?1').bind(Number(b.project_id) || 0).first();
+      if (!project || !project.active) fail(403, 'This project is not active');
+      await saveOp(env, eng, b);
+      return json({ ok: true });
+    }
+    if (path === '/api/public/extract') {
+      if (typeof b.image !== 'string' || !b.image || b.image.length > 6_000_000) fail(400, 'Image required');
+      try { return json({ amount: await extractAmount(env, b.image, 'image/jpeg') }); }
+      catch (e) { console.error('extract failed', e); return json({ amount: null, error: 'ai_unavailable' }); }
+    }
+    fail(404, 'Not found');
+  }
+
   const user = await currentUser(req, env);
   if (!user) fail(401, 'Please sign in');
 

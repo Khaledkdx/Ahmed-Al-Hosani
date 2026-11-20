@@ -68,6 +68,10 @@ const Api = (() => {
     changePassword: (current, password) => post('/api/password', { current, password }),
     me: (fresh) => { if (fresh || !mePromise) mePromise = call('/api/me'); return mePromise; },
     extract: imageB64 => post('/api/extract', { image: imageB64 }),
+    // public form (no sign-in)
+    publicConfig: () => call('/api/public/config'),
+    publicExtract: (engineerId, imageB64) => post('/api/public/extract', { engineer_id: engineerId, image: imageB64 }),
+    publicSaveOp: op => post('/api/public/ops', op),
     saveOp: op => post('/api/ops', op),
     ops: params => call('/api/ops?' + new URLSearchParams(params)).then(r => r.ops),
     removeOp: id => call('/api/ops/' + encodeURIComponent(id), { method: 'DELETE' }),
@@ -204,7 +208,7 @@ const Pending = (() => {
       let sent = 0;
       try {
         for (const op of read()) {
-          try { await Api.saveOp(op); sent++; write(read().filter(o => o.id !== op.id)); }
+          try { await (op.engineer_id ? Api.publicSaveOp(op) : Api.saveOp(op)); sent++; write(read().filter(o => o.id !== op.id)); }
           catch (e) {
             if (e.status === 0 || e.status >= 500 || e.status === 401) break; // try again later
             write(read().filter(o => o.id !== op.id)); // rejected for good (e.g. project unassigned)
